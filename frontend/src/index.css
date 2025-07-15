@@ -1,3 +1,104 @@
+/* //index.css */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+.no-scrollbar {
+  /* for Firefox */
+  scrollbar-width: none;
+  /* for IE + Edge */
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  /* for Chrome, Safari, and Opera */
+  display: none;
+}
+
+@layer utilities {
+  .scrollbar-dark {
+    scrollbar-width: thin;
+    scrollbar-color: #444 #00000000;
+  }
+  .scrollbar-dark::-webkit-scrollbar {
+    width: 8px;
+    background: #00000000;
+  }
+  .scrollbar-dark::-webkit-scrollbar-thumb {
+    background-color: #444;
+    border-radius: 4px;
+  }
+  .scrollbar-dark::-webkit-scrollbar-track {
+    background: #00000000;
+  }
+}
+
+.text-slate-200 {
+    --tw-text-opacity: 1;
+    /* color: rgb(226 232 240 / var(--tw-text-opacity)) #e2e8f0; */
+    color: #989898;
+}
+
+.w-96 {
+    width:  500px ;
+}
+/* Custom animations for modernized Loader component */
+@keyframes fade-in {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes spin {
+  from { 
+    transform: rotate(0deg); 
+  }
+  to { 
+    transform: rotate(360deg); 
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+  }
+  50% { 
+    opacity: 0.5; 
+  }
+}
+
+/* Custom utility classes */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-spin-slow {
+  animation: spin 2s linear infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Glassmorphism support */
+@supports (backdrop-filter: blur(10px)) {
+  .backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-spin-slow,
+  .animate-pulse-slow {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
