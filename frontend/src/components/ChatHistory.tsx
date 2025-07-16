@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, Clock, Circle, ChevronDown, ChevronRight, User, Bot } from 'lucide-react';
+import { CheckCircle, Clock, Circle, ChevronDown, ChevronRight, User, Bot, Zap } from 'lucide-react';
 import { ChatMessage, Step, StepType } from '../types';
 
 interface ChatHistoryProps {
@@ -69,10 +69,6 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
 
   return (
     <div className="bg-[#1a1a1a] rounded-lg shadow-lg p-4 h-full overflow-auto no-scrollbar">
-      <h2 className="text-lg font-semibold mb-4 text-gray-100 flex items-center gap-2">
-        <Bot className="w-5 h-5" />
-        Chat History
-      </h2>
       
       <div className="space-y-4">
         {messages.map((message) => (
@@ -164,8 +160,8 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
 
         {/* Empty State */}
         {messages.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <div className="text-center pt-36 text-gray-500">
+            <Zap className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Start a conversation to see the chat history</p>
           </div>
         )}

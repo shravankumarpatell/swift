@@ -47,11 +47,11 @@ export function Builder() {
   // Function to download project as zip
   const downloadProject = async () => {
     const zip = new JSZip();
-    
+
     const addFilesToZip = (fileItems: FileItem[], currentPath: string = '') => {
       fileItems.forEach(item => {
         const fullPath = currentPath ? `${currentPath}/${item.name}` : item.name;
-        
+
         if (item.type === 'file') {
           zip.file(fullPath, item.content || '');
         } else if (item.type === 'folder' && item.children) {
@@ -62,7 +62,7 @@ export function Builder() {
     };
 
     addFilesToZip(files);
-    
+
     try {
       const content = await zip.generateAsync({ type: 'blob' });
       const url = window.URL.createObjectURL(content);
@@ -83,7 +83,7 @@ export function Builder() {
   //     const fullPath = file.path;
   //     // Option 1: If you're using a real file system/API
   //     // await saveFileToServer(file.path, newContent);
-      
+
   //     // Option 2: If you're managing files in React state
   //     // Update your files state with the new content
   //     setFiles(prevFiles => 
@@ -93,12 +93,12 @@ export function Builder() {
   //           : f
   //       )
   //     );
-      
+
   //     console.log(`File saved: ${fullPath}`);
-      
+
   //     // Optional: Show success message
   //     // showToast('File saved successfully!');
-      
+
   //   } catch (error) {
   //     console.error('Failed to save file:', error);
   //     throw error;
@@ -108,11 +108,11 @@ export function Builder() {
   // };
 
   // Extract all pending steps from chat messages
-  
+
   const handleSave = async (file: FileItem, newContent: string) => {
     try {
       const fullPath = file.path;
-      
+
       // Recursive function to update file content in nested structure
       const updateFileInTree = (files: FileItem[]): FileItem[] => {
         return files.map(f => {
@@ -126,15 +126,15 @@ export function Builder() {
           return f;
         });
       };
-      
+
       // Update your files state with the new content using recursive search
       setFiles(prevFiles => updateFileInTree(prevFiles));
-      
+
       console.log(`File saved: ${fullPath}`);
-      
+
       // Optional: Show success message
       // showToast('File saved successfully!');
-      
+
     } catch (error) {
       console.error('Failed to save file:', error);
       throw error;
@@ -187,10 +187,10 @@ export function Builder() {
 
     pendingSteps.forEach(step => {
       updateHappened = true;
-      
+
       if (step?.type === StepType.CreateFile) {
         updateStepStatus(step.id, 'completed');
-        
+
         let parsedPath = step.path?.split("/") ?? [];
         let currentFileStructure = [...originalFiles];
         let finalAnswerRef = currentFileStructure;
@@ -433,14 +433,14 @@ export function Builder() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden ">
         {/* Left Panel - Chat History */}
         <div className="w-96 bg-[#1a1a1a] border-r border-gray-800 flex flex-col">
           {/* Chat History */}
-          <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="flex-1 bg-gradient-to-br from-[#0A122A] to-[#0d1117] overflow-y-auto no-scrollbar">
             <ChatHistory messages={chatMessages} />
           </div>
-          
+
           {/* Chat Input */}
           <ChatInput
             userPrompt={userPrompt}
@@ -556,5 +556,3 @@ export function Builder() {
     </div>
   );
 }
-
-
