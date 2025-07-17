@@ -217,28 +217,6 @@ export function Home() {
                   </div>
                 </div>
               </div>
-
-              {/* Demo video placeholder */}
-              {/* <div className="relative max-w-5xl mx-auto">
-                <div className="relative bg-gradient-to-br from-[#1A1C24] to-[#2A2D36] rounded-2xl border border-gray-800/50 overflow-hidden shadow-2xl">
-                  <div className="flex items-center px-6 py-4 bg-[#1A1C24] border-b border-gray-800/50">
-                    <div className="flex gap-2">
-                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                    </div>
-                    <div className="flex-1 text-center">
-                      <span className="text-sm text-gray-400">bolt.new - AI Web Development</span>
-                    </div>
-                  </div>
-                  
-                  <div className="aspect-video bg-gradient-to-br from-[#0C0E16] to-[#1A1C24] flex items-center justify-center">
-                    <button className="group flex items-center justify-center w-20 h-20 bg-gradient-to-r from-orange-500 to-red-600 rounded-full shadow-2xl hover:shadow-orange-500/25 transition-all duration-300 hover:scale-110">
-                      <Play className="w-8 h-8 text-white ml-1" />
-                    </button>
-                  </div>
-                </div>
-              </div> */}
             </div>
           </div>
         </section>
@@ -275,75 +253,6 @@ export function Home() {
             </div>
           </div>
         </section>
-
-        {/* Showcase Section */}
-        {/* <section id="showcase" className="py-20 bg-gradient-to-br from-orange-900/70 via-black to-black opacity-100"> 
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold mb-4">
-                <span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                  Built with bolt.new
-                </span>
-              </h2>
-              <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-                See what others have created with AI-powered development
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {showcaseApps.map((app, index) => (
-                <div 
-                  key={index}
-                  className="group bg-[#1A1C24] border border-gray-800/50 rounded-xl overflow-hidden hover:border-orange-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/10"
-                >
-                  <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden">
-                    <img 
-                      src={app.image} 
-                      alt={app.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-semibold mb-2 text-white">{app.title}</h3>
-                    <p className="text-gray-400 mb-4">{app.description}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {app.tags.map((tag, tagIndex) => (
-                        <span 
-                          key={tagIndex}
-                          className="px-3 py-1 bg-[#2A2D36] text-orange-400 text-sm rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section> */}
-
-        {/* CTA Section */}
-        {/* <section className="py-20 bg-gradient-to-r from-orange-500/10 via-red-600/10 to-orange-500/10 border-y border-orange-500/20">
-          <div className="max-w-4xl mx-auto text-center px-6">
-            <h2 className="text-4xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                Ready to build with AI?
-              </span>
-            </h2>
-            <p className="text-xl text-gray-400 mb-8">
-              Join thousands of developers building the future with bolt.new
-            </p>
-            <button 
-              onClick={() => navigate('/builder')}
-              className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-2xl hover:shadow-orange-500/25 hover:scale-105"
-            >
-              <Zap className="w-5 h-5" />
-              Start Building Now
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
-        </section> */}
       </main>
 
       {/* Footer */}
