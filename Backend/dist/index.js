@@ -12,48 +12,41 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+//index.ts
 require("dotenv").config();
 const express_1 = __importDefault(require("express"));
-const inference_1 = require("@huggingface/inference");
+const genai_1 = require("@google/genai");
 const prompts_1 = require("./prompts");
 const node_1 = require("./defaults/node");
 const react_1 = require("./defaults/react");
-const fullstack_1 = require("./defaults/fullstack");
 const cors_1 = __importDefault(require("cors"));
-const client = new inference_1.InferenceClient(process.env.HF_TOKEN);
+const ai = new genai_1.GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY
+});
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
-// Helper function to clean DeepSeek response by removing <think> tags
-function cleanDeepSeekResponse(text) {
-    // Remove <think>...</think> blocks including the tags
+// Helper function to clean response (keeping for consistency, though Gemini doesn't use <think> tags)
+function cleanResponse(text) {
+    // Remove any potential unwanted tags - can be modified if needed
     return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 }
 app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const prompt = req.body.prompt;
     try {
-        const response = yield client.chatCompletion({
-            provider: "fireworks-ai",
-            model: "deepseek-ai/DeepSeek-V3",
-            messages: [
-                {
-                    role: "system",
-                    content: "Return either node or react based on what do you think this project should be. Only return a single word either 'node', 'react' or 'fullstack'. Do not return anything extra"
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-            max_tokens: 100
+        const response = yield ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            contents: `System: Return either node or react based on what do you think this project should be. Only return a single word either 'node' or 'react'. Do not return anything extra.
+
+User: ${prompt}`
         });
-        const rawAnswer = response.choices[0].message.content;
+        const rawAnswer = response.text;
         if (!rawAnswer) {
             res.status(500).json({ message: "No response from AI" });
             return;
         }
         console.log(rawAnswer);
-        const answer = cleanDeepSeekResponse(rawAnswer).toLowerCase();
+        const answer = cleanResponse(rawAnswer).toLowerCase();
         console.log(answer);
         if (answer === "react") {
             res.json({
@@ -69,13 +62,6 @@ app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* 
             });
             return;
         }
-        if (answer === "fullstack") {
-            res.json({
-                prompts: [prompts_1.BASE_PROMPT, `Here is an artifact that contains all files of the project visible to you.\nConsider the contents of ALL files in the project.\n\n${fullstack_1.fullstackprompt}\n\nHere is a list of files that exist on the file system but are not being shown to you:\n\n  - .gitignore\n  - package-lock.json\n`],
-                uiPrompts: [fullstack_1.fullstackprompt]
-            });
-            return;
-        }
         res.status(403).json({ message: "You cant access this" });
         return;
     }
@@ -88,27 +74,24 @@ app.post("/template", (req, res) => __awaiter(void 0, void 0, void 0, function* 
 app.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const messages = req.body.messages;
     try {
-        // Convert messages format if needed and add system prompt
-        const formattedMessages = [
-            {
-                role: "system",
-                content: (0, prompts_1.getSystemPrompt)()
-            },
-            ...messages
-        ];
-        const response = yield client.chatCompletion({
-            provider: "fireworks-ai",
-            model: "deepseek-ai/DeepSeek-V3",
-            messages: formattedMessages,
-            max_tokens: 128000
+        // Convert messages to Gemini format - simple string format
+        let conversationText = `System: ${(0, prompts_1.getSystemPrompt)()}\n\n`;
+        // Add all messages to the conversation
+        for (const message of messages) {
+            const role = message.role === 'assistant' ? 'Assistant' : 'User';
+            conversationText += `${role}: ${message.content}\n\n`;
+        }
+        const response = yield ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            contents: conversationText
         });
         console.log(response);
-        const rawContent = response.choices[0].message.content;
+        const rawContent = response.text;
         if (!rawContent) {
             res.status(500).json({ message: "No response from AI" });
             return;
         }
-        const cleanedContent = cleanDeepSeekResponse(rawContent);
+        const cleanedContent = cleanResponse(rawContent);
         console.log(cleanedContent);
         res.json({
             response: cleanedContent

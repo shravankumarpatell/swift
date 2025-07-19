@@ -1,3 +1,4 @@
+//Terminal.ts
 import React, { Dispatch, SetStateAction, useState, useRef, useEffect } from 'react';
 import { WebContainer } from '@webcontainer/api';
 import { ChevronDown, Terminal as TerminalIcon, Plus, X, Maximize2, Minimize2, Zap, Play, CheckCircle, Clock, AlertCircle } from 'lucide-react';
@@ -47,6 +48,21 @@ export function Terminal({
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Clean ANSI escape sequences from terminal output
+  const cleanAnsiOutput = (text: string): string => {
+    // Remove ANSI escape sequences
+    return text
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '') // Remove ANSI escape codes
+      .replace(/\[1G/g, '') // Remove cursor positioning
+      .replace(/\[0K/g, '') // Remove line clearing
+      .replace(/\[K/g, '') // Remove line clearing
+      .replace(/\r\n/g, '\n') // Normalize line endings
+      .replace(/\r/g, '\n') // Convert carriage returns to newlines
+      .split('\n')
+      .filter(line => line.trim() !== '' || line === '') // Keep empty lines but remove whitespace-only lines
+      .join('\n');
+  };
+
   // Process command queue
   useEffect(() => {
     if (commandQueue.length > 0 && webContainer) {
@@ -81,14 +97,32 @@ export function Terminal({
     }
   }, [commandExecutions, terminals]);
 
-  const createNewTerminal = () => {
+  const createNewTerminal = async () => {
+    if (!webContainer) return;
+
+    // Get current working directory
+    let currentDir = '/';
+    try {
+      const pwdProcess = await webContainer.spawn('pwd', []);
+      pwdProcess.output.pipeTo(new WritableStream({
+        write(data) {
+          currentDir = data.toString().trim();
+        }
+      }));
+      await pwdProcess.exit;
+    } catch (error) {
+      // Default to root if pwd fails
+      currentDir = '/';
+    }
+
     const newTerminal: TerminalSession = {
       id: `terminal-${Date.now()}`,
       name: `Bolt Terminal`,
       output: [
-        'Terminal initialized'
+        'Terminal initialized',
+        `Current directory: ${currentDir}`
       ],
-      currentDir: '/',
+      currentDir,
       isActive: true,
       process: null
     };
@@ -101,7 +135,15 @@ export function Terminal({
   };
 
   const executeQueuedCommand = async (commandId: number, command: string) => {
-    if (!webContainer) return;
+    if (!webContainer) {
+      console.error('WebContainer not available');
+      setCommandExecutions(prev => prev.map(exec => 
+        exec.id === commandId 
+          ? { ...exec, status: 'error', endTime: new Date(), output: ['❌ WebContainer not available'] }
+          : exec
+      ));
+      return;
+    }
 
     // Update command status to running
     setCommandExecutions(prev => prev.map(exec => 
@@ -114,7 +156,7 @@ export function Terminal({
 
     try {
       // Add command to terminal output
-      const commandLine = `Executing: ${command}`;
+      const commandLine = `$ ${command}`;
       updateTerminalOutput(activeTerminalId, commandLine);
       
       // Update command execution output
@@ -127,25 +169,50 @@ export function Terminal({
       // Parse command and arguments
       const [cmd, ...args] = command.trim().split(' ');
       
-      // Execute command in WebContainer
-      const process = await webContainer.spawn(cmd, args);
+      // Get current directory from active terminal
+      const activeTerminal = terminals.find(t => t.id === activeTerminalId);
+      const cwd = activeTerminal?.currentDir || '/';
+
+      console.log(`Executing command: ${cmd} with args:`, args, 'in directory:', cwd);
+      console.log('WebContainer instance:', webContainer);
+
+      // Execute command in WebContainer with proper working directory
+      let process;
+      try {
+        process = await webContainer.spawn(cmd, args, {
+          cwd: cwd
+        });
+        console.log('Process spawned successfully:', process);
+      } catch (spawnError) {
+        console.error('Spawn error details:', spawnError);
+        throw new Error(`Failed to spawn process: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`);
+      }
       
-      // Handle output
+      // Handle output with ANSI cleaning
       let outputBuffer = '';
       process.output.pipeTo(new WritableStream({
         write(data) {
-          const output = data.toString();
-          outputBuffer += output;
+          const rawOutput = data.toString();
+          const cleanOutput = cleanAnsiOutput(rawOutput);
           
-          // Update terminal output
-          updateTerminalOutput(activeTerminalId, output);
-          
-          // Update command execution output
-          setCommandExecutions(prev => prev.map(exec => 
-            exec.id === commandId 
-              ? { ...exec, output: [...exec.output, output] }
-              : exec
-          ));
+          if (cleanOutput.trim()) {
+            outputBuffer += cleanOutput;
+            
+            // Split by lines and add each non-empty line
+            const lines = cleanOutput.split('\n');
+            lines.forEach(line => {
+              if (line.trim() || line === '') {
+                updateTerminalOutput(activeTerminalId, line);
+                
+                // Update command execution output
+                setCommandExecutions(prev => prev.map(exec => 
+                  exec.id === commandId 
+                    ? { ...exec, output: [...exec.output, line] }
+                    : exec
+                ));
+              }
+            });
+          }
         }
       }));
 
@@ -174,8 +241,9 @@ export function Terminal({
       onCommandComplete(commandId);
 
     } catch (error) {
-      const errorMessage = `❌ Error: ${error}`;
+      const errorMessage = `❌ Error: ${error instanceof Error ? error.message : String(error)}`;
       updateTerminalOutput(activeTerminalId, errorMessage);
+      console.error('Command execution error:', error);
       
       setCommandExecutions(prev => prev.map(exec => 
         exec.id === commandId 
@@ -202,8 +270,8 @@ export function Terminal({
     setCommandHistory(prev => [...prev, command]);
     setHistoryIndex(-1);
 
-    // Add command to output
-    const commandLine = `👤 $ ${command}`;
+    // Add command to output (keep the command visible)
+    const commandLine = `$ ${command}`;
     updateTerminalOutput(activeTerminalId, commandLine);
 
     try {
@@ -213,28 +281,75 @@ export function Terminal({
       // Handle built-in commands
       if (cmd === 'clear') {
         clearTerminal(activeTerminalId);
+        setCurrentInput('');
         return;
       }
 
       if (cmd === 'cd') {
-        const newDir = args[0] || '/';
-        updateTerminalDir(activeTerminalId, newDir);
+        const targetDir = args[0] || '/';
+        await changeDirectory(activeTerminalId, targetDir);
+        setCurrentInput('');
         return;
       }
 
-      // Execute command in WebContainer
-      const process = await webContainer.spawn(cmd, args);
+      // Test command for debugging WebContainer
+      if (cmd === 'test') {
+        updateTerminalOutput(activeTerminalId, '🔍 Testing WebContainer...');
+        try {
+          const testProcess = await webContainer.spawn('echo', ['WebContainer is working!']);
+          console.log('Test process created:', testProcess);
+          
+          testProcess.output.pipeTo(new WritableStream({
+            write(data) {
+              updateTerminalOutput(activeTerminalId, `✅ ${data.toString()}`);
+            }
+          }));
+          
+          const exitCode = await testProcess.exit;
+          updateTerminalOutput(activeTerminalId, `Test completed with exit code: ${exitCode}`);
+        } catch (testError) {
+          console.error('Test error:', testError);
+          updateTerminalOutput(activeTerminalId, `❌ Test failed: ${testError instanceof Error ? testError.message : String(testError)}`);
+        }
+        setCurrentInput('');
+        return;
+      }
+
+      console.log(`Executing command: ${cmd} with args:`, args, 'in directory:', activeTerminal.currentDir);
+      console.log('WebContainer instance:', webContainer);
+
+      // Execute command in WebContainer with current working directory
+      let process;
+      try {
+        process = await webContainer.spawn(cmd, args, {
+          cwd: activeTerminal.currentDir
+        });
+        console.log('Process spawned successfully:', process);
+      } catch (spawnError) {
+        console.error('Spawn error details:', spawnError);
+        throw new Error(`Failed to spawn process: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`);
+      }
       
       // Update terminal with process reference
       setTerminals(prev => prev.map(t => 
         t.id === activeTerminalId ? { ...t, process } : t
       ));
 
-      // Handle output
+      // Handle output with ANSI cleaning
       process.output.pipeTo(new WritableStream({
         write(data) {
-          const output = data.toString();
-          updateTerminalOutput(activeTerminalId, output);
+          const rawOutput = data.toString();
+          const cleanOutput = cleanAnsiOutput(rawOutput);
+          
+          if (cleanOutput.trim()) {
+            // Split by lines and add each non-empty line
+            const lines = cleanOutput.split('\n');
+            lines.forEach(line => {
+              if (line.trim() || line === '') {
+                updateTerminalOutput(activeTerminalId, line);
+              }
+            });
+          }
         }
       }));
 
@@ -242,17 +357,64 @@ export function Terminal({
       const exitCode = await process.exit;
       
       if (exitCode === 0) {
-        updateTerminalOutput(activeTerminalId, '✅ Command completed');
+        updateTerminalOutput(activeTerminalId, '');
       } else {
         updateTerminalOutput(activeTerminalId, `❌ Process exited with code ${exitCode}`);
+        updateTerminalOutput(activeTerminalId, '');
       }
 
     } catch (error) {
-      updateTerminalOutput(activeTerminalId, `❌ Error: ${error}`);
+      const errorMessage = `❌ Error: ${error instanceof Error ? error.message : String(error)}`;
+      updateTerminalOutput(activeTerminalId, errorMessage);
+      updateTerminalOutput(activeTerminalId, '');
+      console.error('Command execution error:', error);
     }
 
-    // Clear input
+    // Clear input after command execution
     setCurrentInput('');
+  };
+
+  const changeDirectory = async (terminalId: string, targetDir: string) => {
+    if (!webContainer) return;
+
+    try {
+      // Resolve the target directory
+      const activeTerminal = terminals.find(t => t.id === terminalId);
+      const currentDir = activeTerminal?.currentDir || '/';
+      
+      let newDir = targetDir;
+      
+      // Handle relative paths
+      if (!targetDir.startsWith('/')) {
+        if (targetDir === '..') {
+          // Go up one directory
+          const parts = currentDir.split('/').filter(p => p);
+          parts.pop();
+          newDir = '/' + parts.join('/');
+          if (newDir === '/') newDir = '/';
+        } else if (targetDir === '.') {
+          newDir = currentDir;
+        } else {
+          // Relative path
+          newDir = currentDir === '/' ? `/${targetDir}` : `${currentDir}/${targetDir}`;
+        }
+      }
+
+      // Test if directory exists by trying to list it
+      const testProcess = await webContainer.spawn('ls', ['-la', newDir]);
+      const exitCode = await testProcess.exit;
+      
+      if (exitCode === 0) {
+        updateTerminalDir(terminalId, newDir);
+        updateTerminalOutput(terminalId, `Changed directory to: ${newDir}`);
+      } else {
+        updateTerminalOutput(terminalId, `❌ Directory not found: ${targetDir}`);
+      }
+    } catch (error) {
+      const errorMessage = `❌ Error changing directory: ${error instanceof Error ? error.message : String(error)}`;
+      updateTerminalOutput(terminalId, errorMessage);
+      console.error('Directory change error:', error);
+    }
   };
 
   const updateTerminalOutput = (terminalId: string, output: string) => {
@@ -281,7 +443,9 @@ export function Terminal({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       executeCommand(currentInput);
+      // Note: currentInput is cleared in executeCommand, not here
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (commandHistory.length > 0) {
@@ -371,11 +535,11 @@ export function Terminal({
             <div 
               key={index} 
               className={`whitespace-pre-wrap mb-1 ${
-                line.includes('Executing:') ? 'text-orange-400 font-medium' :
+                line.includes('$') && (line.includes('Executing:') || line.startsWith('$ ')) ? 'text-blue-400 font-medium' :
                 line.includes('✅') ? 'text-green-400' :
                 line.includes('❌') ? 'text-red-400' :
-                line.includes('💻 $') ? 'text-blue-400' :
-                line.includes('🚀') || line.includes('💡') ? 'text-purple-400' :
+                line.includes('Changed directory') ? 'text-cyan-400' :
+                line.includes('Terminal initialized') || line.includes('Current directory') ? 'text-purple-400' :
                 'text-gray-300'
               }`}
             >
@@ -389,7 +553,7 @@ export function Terminal({
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-orange-400 font-mono text-sm font-medium">
-                {activeTerminal?.currentDir || '/'} 
+                {activeTerminal?.currentDir || '/'} $ 
               </span>
             </div>
             <input

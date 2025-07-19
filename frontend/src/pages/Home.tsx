@@ -70,7 +70,7 @@ export function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-900/100 via-black to-black opacity-100 text-gray-100 font-inter">
+    <div className="min-h-screen bg-gradient-to-br from-orange-700/100 via-black to-black opacity-100 text-gray-100 font-inter">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-transparent backdrop-blur-xl ">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -114,7 +114,7 @@ export function Home() {
       <main>
         {/* Hero Section */}
         <section className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-900/70 via-black to-black opacity-100"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-700/70 via-black to-black opacity-100"></div>
           <div className="relative max-w-6xl mx-auto px-6 pt-20 md:pt-32 md:pb-10">
             <div className="text-center">
               {/* Badge */}
