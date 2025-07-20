@@ -12,6 +12,8 @@ import { parseXml } from '../steps';
 import { useWebContainer } from '../hooks/useWebContainer';
 import ChatInput from '../components/ChatInput';
 import JSZip from 'jszip';
+import { WebContainerManager } from '../components/WebContainerManager';
+
 
 import {
   Search,
@@ -249,6 +251,7 @@ export function Builder() {
     webcontainer?.mount(mountStructure);
   }, [files, webcontainer]);
 
+  
   async function init() {
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt: prompt.trim()
