@@ -13,31 +13,31 @@
 
 ## 🌟 Features
 
-### 🤖 AI-Powered Development
+###  AI-Powered Development
 - **Natural Language Prompts**: Describe your app in plain English
 - **Intelligent Code Generation**: Get complete, production-ready applications
 - **Smart Architecture Decisions**: AI chooses the right tech stack automatically
 
-### 🔧 Complete Development Environment
+###  Complete Development Environment
 - **Built-in Code Editor**: Monaco-powered editor with syntax highlighting
 - **Live Preview**: See your app running in real-time as it's built
 - **Integrated Terminal**: Full WebContainer-based terminal environment
 - **File Management**: Complete file explorer and project structure management
 
-### 🚀 Modern Tech Stack
+###  Modern Tech Stack
 - **Frontend**: React 18, TypeScript, Tailwind CSS
 - **Backend**: Node.js, Express, Gemini AI API
 - **Development**: Vite, WebContainer API
 - **Code Editor**: Monaco Editor with advanced features
 
-### 💡 Key Capabilities
+###  Key Capabilities
 - **Multi-language Support**: JavaScript, TypeScript, React, Node.js, and more
 - **Real-time Compilation**: Instant feedback and live updates
 - **Project Export**: Download your complete project as ZIP
 - **Step-by-Step Execution**: Visual progress tracking of build steps
 - **Error Handling**: Robust error detection and recovery
 
-## 🏗️ Architecture
+##  Architecture
 
 ```mermaid
 graph TB
@@ -69,7 +69,7 @@ graph TB
   - Full filesystem emulation
   - Package management and build tools
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -142,7 +142,7 @@ Cross-Origin-Embedder-Policy: require-corp
 Cross-Origin-Opener-Policy: same-origin
 ```
 
-## 📖 Usage
+##  Usage
 
 ### Basic Workflow
 
@@ -168,7 +168,7 @@ Cross-Origin-Opener-Policy: same-origin
 - `"Make a blog with markdown support and dark mode"`
 - `"Create an e-commerce product page with shopping cart"`
 
-## 🛠️ Development
+##  Development
 
 ### Project Structure
 
@@ -224,7 +224,7 @@ swift/
 3. **Project Templates**: Add to `Backend/src/defaults/`
 4. **Type Definitions**: Update `frontend/src/types/index.ts`
 
-## 🧪 Testing
+##  Testing
 
 ```bash
 # Run frontend tests
@@ -239,7 +239,7 @@ npm test
 npm run test:integration
 ```
 
-## 📦 Building for Production
+##  Building for Production
 
 ```bash
 # Build frontend
@@ -255,7 +255,7 @@ cd Backend
 npm run start
 ```
 
-## 🚀 Deployment
+##  Deployment
 
 ### Docker
 
@@ -276,7 +276,7 @@ Ensure your deployment environment supports:
 - SharedArrayBuffer availability
 - WebContainer API compatibility
 
-## 🤝 Contributing
+##  Contributing
 
 We welcome contributions! Please follow these steps:
 
@@ -321,7 +321,7 @@ POST /template
 }
 ```
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -340,7 +340,7 @@ POST /template
 - Verify package.json is valid
 - Check browser console for errors
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -353,7 +353,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ##  Support
 
-- **Email**: [shravan kumar patel](shravankumarpatelofficial@gmail.com)
+- **Email**: [shravankumarpatelofficial@gmail.com]
 
 ---
 
