@@ -261,6 +261,54 @@ useEffect(() => {
   });
 }, [webcontainer]);
 
+useEffect(() => {
+  console.log('🔍 WebContainer Environment Debug:');
+  console.log('==================================');
+  
+  // Check cross-origin isolation
+  console.log('✅ Cross-Origin Isolated:', crossOriginIsolated);
+  
+  // Check SharedArrayBuffer
+  console.log('✅ SharedArrayBuffer available:', typeof SharedArrayBuffer !== 'undefined');
+  
+  // Check other required APIs
+  console.log('✅ Worker available:', typeof Worker !== 'undefined');
+  console.log('✅ MessageChannel available:', typeof MessageChannel !== 'undefined');
+  
+  // Check current headers
+  console.log('📋 Current page headers:');
+  fetch(window.location.href, { method: 'HEAD' })
+    .then(response => {
+      console.log('- COOP:', response.headers.get('Cross-Origin-Opener-Policy'));
+      console.log('- COEP:', response.headers.get('Cross-Origin-Embedder-Policy'));
+      console.log('- CORP:', response.headers.get('Cross-Origin-Resource-Policy'));
+    })
+    .catch(err => console.log('Could not fetch headers:', err));
+  
+  // Check WebContainer support
+  console.log('🐳 WebContainer instance:', webcontainer);
+  
+  if (!crossOriginIsolated) {
+    console.error('❌ CRITICAL: Page is not cross-origin isolated!');
+    console.log('💡 This means WebContainer cannot work.');
+    console.log('💡 Check that headers are actually being served by the browser.');
+  }
+  
+  if (typeof SharedArrayBuffer === 'undefined') {
+    console.error('❌ CRITICAL: SharedArrayBuffer is not available!');
+    console.log('💡 This is required for WebContainer to function.');
+  }
+  
+  // Test if we're in an iframe (which can prevent cross-origin isolation)
+  if (window !== window.parent) {
+    console.warn('⚠️  WARNING: Page is running in an iframe!');
+    console.log('💡 Cross-origin isolation may not work in iframes.');
+  }
+  
+  console.log('==================================');
+}, [webcontainer]);
+
+
   async function init() {
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt: prompt.trim()
