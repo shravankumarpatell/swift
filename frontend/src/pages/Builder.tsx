@@ -252,6 +252,15 @@ export function Builder() {
   }, [files, webcontainer]);
 
   
+useEffect(() => {
+  console.log('WebContainer Debug:', {
+    crossOriginIsolated: self.crossOriginIsolated,
+    sharedArrayBuffer: typeof SharedArrayBuffer !== 'undefined',
+    webContainer: webcontainer,
+    isSupported: WebContainerManager.isSupported()
+  });
+}, [webcontainer]);
+
   async function init() {
     const response = await axios.post(`${BACKEND_URL}/template`, {
       prompt: prompt.trim()
