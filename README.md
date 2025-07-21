@@ -9,6 +9,8 @@
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?logo=node.js&logoColor=white)](https://nodejs.org/)
 
+[swift](https://swift-gg67.onrender.com)
+
 ## 🌟 Features
 
 ### 🤖 AI-Powered Development
@@ -79,8 +81,8 @@ graph TB
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/shravankumarpatell/bolt.newer.git
-   cd bolt.newer
+   git clone https://github.com/shravankumarpatell/swift.git
+   cd swift
    ```
 
 2. **Install dependencies**
@@ -171,7 +173,7 @@ Cross-Origin-Opener-Policy: same-origin
 ### Project Structure
 
 ```
-bolt.newer/
+swift/
 ├── frontend/                # React frontend application
 │   ├── public/             # Static assets
 │   ├── src/
@@ -342,26 +344,21 @@ POST /template
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - **Google Gemini** for AI capabilities
 - **StackBlitz** for WebContainer technology
 - **Monaco Editor** for code editing experience
 - **React** and **TypeScript** communities
 
-## 📞 Support
+##  Support
 
-- **Documentation**: [docs.swift.dev](https://docs.swift.dev)
-- **Issues**: [GitHub Issues](https://github.com/your-username/bolt.newer/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/bolt.newer/discussions)
-- **Discord**: [Join our community](https://discord.gg/swift)
+- **Email**: [shravan kumar patel](shravankumarpatelofficial@gmail.com)
 
 ---
 
 <div align="center">
 
-**Built with ❤️ by the Swift team**
-
-[Website](https://swift-gg67.onrender.com)
+**Built with ❤️ by the SKP**
 
 </div>
