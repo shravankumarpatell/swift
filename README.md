@@ -9,7 +9,7 @@
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-[swift](https://swift-gg67.onrender.com)
+Project link: [swift](https://swift-gg67.onrender.com)
 
 ## 🌟 Features
 
@@ -296,7 +296,7 @@ We welcome contributions! Please follow these steps:
 - Ensure all tests pass
 - Update documentation as needed
 
-## 📝 API Documentation
+##  API Documentation
 
 ### Chat Endpoint
 
