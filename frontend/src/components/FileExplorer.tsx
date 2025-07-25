@@ -1,4 +1,3 @@
-//FileExplorer.tsx
 import React, { useState, useMemo } from 'react';
 import { 
   FolderTree, 
@@ -15,6 +14,7 @@ import {
   Edit3
 } from 'lucide-react';
 import { FileItem } from '../types';
+import { useDarkMode } from '../contexts/DarkModeContext';
 
 interface FileExplorerProps {
   files: FileItem[];
@@ -32,6 +32,7 @@ interface FileNodeProps {
 function FileNode({ item, depth, onFileClick, searchTerm, selectedFile }: FileNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
+  const { isDarkMode } = useDarkMode();
 
   const handleClick = () => {
     if (item.type === 'folder') {
@@ -47,7 +48,12 @@ function FileNode({ item, depth, onFileClick, searchTerm, selectedFile }: FileNo
   };
 
   const getFileIcon = (fileName: string, isSelected: boolean) => {
-    const iconClass = isSelected ? "w-4 h-4 text-blue-400" : "w-4 h-4 text-slate-200 group-hover:text-slate-50 transition-all duration-200";
+    const baseClass = "w-4 h-4 group-hover:text-slate-50 transition-all duration-200";
+    const iconClass = isSelected 
+      ? `${baseClass} text-purple-400` 
+      : isDarkMode 
+        ? `${baseClass} text-slate-200`
+        : `${baseClass} text-gray-600`;
     
     if (fileName.endsWith('.js') || fileName.endsWith('.jsx') || fileName.endsWith('.ts') || fileName.endsWith('.tsx')) {
       return <FileText className={iconClass} />;
@@ -90,21 +96,44 @@ function FileNode({ item, depth, onFileClick, searchTerm, selectedFile }: FileNo
 
   const isSelected = selectedFile && item.type === 'file' && selectedFile.path === item.path;
 
+  const themeClasses = {
+    itemContainer: isDarkMode
+      ? `group flex items-center gap-1 py-1 px-2 cursor-pointer transition-all duration-200 relative text-sm ${
+          isSelected 
+            ? 'bg-purple-500/20 hover:bg-purple-500/30' 
+            : 'hover:bg-slate-600/50'
+        }`
+      : `group flex items-center gap-1 py-1 px-2 cursor-pointer transition-all duration-200 relative text-sm ${
+          isSelected 
+            ? 'bg-purple-100 hover:bg-purple-200/70' 
+            : 'hover:bg-gray-100'
+        }`,
+    expandIcon: isDarkMode
+      ? "text-slate-400 group-hover:text-slate-50 transition-all duration-200 flex-shrink-0"
+      : "text-gray-500 group-hover:text-gray-700 transition-all duration-200 flex-shrink-0",
+    folderIcon: isSelected 
+      ? 'text-purple-400' 
+      : isDarkMode 
+        ? 'text-purple-400 group-hover:text-slate-50'
+        : 'text-purple-500 group-hover:text-purple-600',
+    fileName: isSelected 
+      ? 'text-purple-400' 
+      : isDarkMode 
+        ? 'text-slate-200 group-hover:text-slate-50'
+        : 'text-gray-800 group-hover:text-gray-900'
+  };
+
   return (
     <div className="select-none">
       <div
-        className={`group flex items-center gap-1 py-1 px-2 cursor-pointer transition-all duration-200 relative text-sm ${
-          isSelected 
-            ? 'bg-blue-500/20 hover:bg-blue-500/30' 
-            : 'hover:bg-slate-600/50'
-        }`}
+        className={themeClasses.itemContainer}
         style={{ paddingLeft: `${depth * 1.2 + 0.5}rem` }}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       >
         {/* Expand/collapse arrow for folders */}
         {item.type === 'folder' ? (
-          <span className="text-slate-400 group-hover:text-slate-50 transition-all duration-200 flex-shrink-0">
+          <span className={themeClasses.expandIcon}>
             {isExpanded ? (
               <ChevronDown className="w-4 h-4" />
             ) : (
@@ -119,9 +148,9 @@ function FileNode({ item, depth, onFileClick, searchTerm, selectedFile }: FileNo
         <span className="flex-shrink-0">
           {item.type === 'folder' ? (
             isExpanded ? (
-              <FolderOpen className={`w-4 h-4 ${isSelected ? 'text-blue-400' : 'text-blue-400 group-hover:text-slate-50'}`} />
+              <FolderOpen className={`w-4 h-4 ${themeClasses.folderIcon}`} />
             ) : (
-              <Folder className={`w-4 h-4 ${isSelected ? 'text-blue-400' : 'text-blue-400 group-hover:text-slate-50'}`} />
+              <Folder className={`w-4 h-4 ${themeClasses.folderIcon}`} />
             )
           ) : (
             getFileIcon(item.name, isSelected)
@@ -129,9 +158,7 @@ function FileNode({ item, depth, onFileClick, searchTerm, selectedFile }: FileNo
         </span>
         
         {/* File/folder name */}
-        <span className={`flex-1 truncate font-medium transition-all duration-200 ${
-          isSelected ? 'text-blue-400' : 'text-slate-200 group-hover:text-slate-50'
-        }`}>
+        <span className={`flex-1 truncate font-medium transition-all duration-200 ${themeClasses.fileName}`}>
           {item.name}
         </span>
       </div>
@@ -158,6 +185,7 @@ function FileNode({ item, depth, onFileClick, searchTerm, selectedFile }: FileNo
 export function FileExplorer({ files, onFileSelect }: FileExplorerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const { isDarkMode } = useDarkMode();
 
   const handleFileClick = (file: FileItem) => {
     setSelectedFile(file);
@@ -176,14 +204,28 @@ export function FileExplorer({ files, onFileSelect }: FileExplorerProps) {
     });
   }, [files]);
 
+  const themeClasses = {
+    container: 'h-full flex flex-col',
+    emptyState: isDarkMode
+      ? "text-center py-8 text-slate-400"
+      : "text-center py-8 text-gray-500",
+    emptyStateIcon: isDarkMode 
+      ? "w-8 h-8 mx-auto mb-2 text-slate-500" 
+      : "w-8 h-8 mx-auto mb-2 text-gray-400",
+    emptyStateText: isDarkMode ? "text-slate-400" : "text-gray-500",
+    scrollArea: isDarkMode 
+      ? "flex-1 overflow-y-auto overflow-x-hidden scrollbar-dark"
+      : "flex-1 overflow-y-auto overflow-x-hidden"
+  };
+
   return (
-    <div className='h-full flex flex-col'> 
+    <div className={themeClasses.container}> 
       {/* File tree - Scrollable area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-dark">
+      <div className={themeClasses.scrollArea}>
         {sortedFiles.length === 0 ? (
-          <div className="text-center py-8 text-slate-400">
-            <FolderTree className="w-8 h-8 mx-auto mb-2" />
-            <p>No files found</p>
+          <div className={themeClasses.emptyState}>
+            <FolderTree className={themeClasses.emptyStateIcon} />
+            <p className={themeClasses.emptyStateText}>No files found</p>
           </div>
         ) : (
           sortedFiles.map((file, index) => (

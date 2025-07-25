@@ -2,9 +2,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { Builder } from './pages/Builder';
 import { AuthProvider } from './contexts/AuthContext';
+import { DarkModeProvider } from './contexts/DarkModeContext';
 
 function App() {
   return (
+    <DarkModeProvider>
     <AuthProvider>
     <BrowserRouter>
       <Routes>
@@ -13,6 +15,7 @@ function App() {
       </Routes>
     </BrowserRouter>
     </AuthProvider>
+    </DarkModeProvider>
   );
 }
 

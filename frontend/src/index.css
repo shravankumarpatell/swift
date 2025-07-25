@@ -5,6 +5,11 @@
 @tailwind utilities;
 
 
+.bodyy{
+  background-color: black;
+  /* display: none; */
+}
+
 .no-scrollbar {
   /* for Firefox */
   scrollbar-width: none;

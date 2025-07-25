@@ -1,7 +1,7 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { ArrowRight, Loader2, Sparkles, Send } from 'lucide-react';
 import { Loader } from './Loader';
+import { useDarkMode } from '../contexts/DarkModeContext';
 
 interface ChatInputProps {
     userPrompt: string;
@@ -31,6 +31,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [isButtonPressed, setIsButtonPressed] = useState(false);
     const [charCount, setCharCount] = useState(0);
+    const { isDarkMode } = useDarkMode();
     const maxChars = 2000;
 
     // Auto-resize textarea
@@ -113,15 +114,50 @@ const ChatInput: React.FC<ChatInputProps> = ({
     const isNearLimit = charCount > maxChars * 0.8;
     const isOverLimit = charCount > maxChars;
 
+    const themeClasses = {
+        container: isDarkMode
+            ? "border-t border-gray-800/30 bg-[#101010]"
+            : "border-t border-gray-200/50 bg-white",
+        loadingContainer: isDarkMode ? "text-gray-400" : "text-gray-600",
+        loadingIcon: isDarkMode
+            ? "w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center"
+            : "w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center",
+        loadingText: isDarkMode ? "text-sm" : "text-sm",
+        textarea: isDarkMode
+            ? `w-full overflow-auto no-scrollbar pl-4 pt-4 pr-14 pb-4 bg-[#0c0c0c] border-2 rounded-xl text-sm text-white placeholder-gray-400 resize-none focus:outline-none transition-all duration-200 min-h-[60px] max-h-[200px] ${
+                canSend() && !isOverLimit
+                    ? 'border-purple-500/50 focus:border-purple-500 hover:border-purple-500/70'
+                    : isOverLimit
+                    ? 'border-purple-500 focus:border-purple-400'
+                    : 'border-gray-700/50 focus:border-purple-500/50 hover:border-gray-600/50'
+            } ${isOverLimit ? 'focus:ring-2 focus:ring-purple-500/20' : 'focus:ring-2 focus:ring-purple-500/20'}`
+            : `w-full overflow-auto no-scrollbar pl-4 pt-4 pr-14 pb-4 bg-gray-50 border-2 rounded-xl text-sm text-gray-900 placeholder-gray-500 resize-none focus:outline-none transition-all duration-200 min-h-[60px] max-h-[200px] ${
+                canSend() && !isOverLimit
+                    ? 'border-purple-400/50 focus:border-purple-500 hover:border-purple-400/70'
+                    : isOverLimit
+                    ? 'border-purple-500 focus:border-purple-400'
+                    : 'border-gray-300/50 focus:border-purple-400/50 hover:border-gray-400/50'
+            } ${isOverLimit ? 'focus:ring-2 focus:ring-purple-400/20' : 'focus:ring-2 focus:ring-purple-400/20'}`,
+        sendButton: `absolute bottom-3 right-3 flex items-center justify-center w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${
+            isButtonPressed ? 'scale-95' : 'scale-100'
+        } hover:scale-105 active:scale-95 shadow-lg hover:shadow-purple-500/25`,
+        helpText: isDarkMode
+            ? "flex items-center gap-2 text-xs text-gray-500"
+            : "flex items-center gap-2 text-xs text-gray-400",
+        charCounter: isOverLimit 
+            ? (isDarkMode ? 'text-xs text-purple-400' : 'text-xs text-purple-600')
+            : (isDarkMode ? 'text-xs text-purple-400' : 'text-xs text-purple-600')
+    };
+
     return (
-        <div className="border-t border-gray-800/30 bg-[#101010] ">
+        <div className={themeClasses.container}>
             {loading ? (
                 <div className="flex items-center justify-center py-6">
-                    <div className="flex items-center gap-3 text-gray-400">
-                        <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center">
+                    <div className={`flex items-center gap-3 ${themeClasses.loadingContainer}`}>
+                        <div className={themeClasses.loadingIcon}>
                             <Loader2 className="w-3 h-3 text-white animate-spin" />
                         </div>
-                        <span className="text-sm">swift is thinking...</span>
+                        <span className={themeClasses.loadingText}>swift is thinking...</span>
                     </div>
                 </div>
             ) : (
@@ -134,23 +170,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
                                 placeholder={placeholder}
-                                className={`
-                                    w-full
-                                    overflow-auto no-scrollbar
-                                    pl-4 pt-4 pr-14 pb-4
-                                    bg-[#0c0c0c] border-2 rounded-xl
-                                    text-sm text-white placeholder-gray-400
-                                    resize-none focus:outline-none
-                                    transition-all duration-200
-                                    min-h-[60px] max-h-[200px]
-                                    ${canSend() && !isOverLimit
-                                        ? 'border-orange-500/50 focus:border-orange-500 hover:border-orange-500/70'
-                                        : isOverLimit
-                                        ? 'border-red-500 focus:border-red-400'
-                                        : 'border-gray-700/50 focus:border-orange-500/50 hover:border-gray-600/50'
-                                    }
-                                    ${isOverLimit ? 'focus:ring-2 focus:ring-red-500/20' : 'focus:ring-2 focus:ring-orange-500/20'}
-                                `}
+                                className={themeClasses.textarea}
                                 disabled={loading}
                             />
                             
@@ -159,19 +179,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                                 <button
                                     onClick={handleSend}
                                     disabled={loading}
-                                    className={`
-                                        absolute bottom-3 right-3
-                                        flex items-center justify-center
-                                        w-8 h-8
-                                        bg-gradient-to-r from-orange-500 to-red-600
-                                        hover:from-orange-600 hover:to-red-700
-                                        rounded-lg
-                                        transition-all duration-150
-                                        disabled:opacity-50 disabled:cursor-not-allowed
-                                        ${isButtonPressed ? 'scale-95' : 'scale-100'}
-                                        hover:scale-105 active:scale-95
-                                        shadow-lg hover:shadow-orange-500/25
-                                    `}
+                                    className={themeClasses.sendButton}
                                 >
                                     <Send className="w-4 h-4 text-white" />
                                 </button>
@@ -181,11 +189,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
                         {/* Character Counter */}
                         {(isNearLimit || isOverLimit) && (
                             <div className="flex justify-between items-center mt-2">
-                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <div className={themeClasses.helpText}>
                                     <Sparkles className="w-3 h-3" />
                                     <span>Press Enter to send, Shift+Enter for new line</span>
                                 </div>
-                                <span className={`text-xs ${isOverLimit ? 'text-red-400' : 'text-orange-400'}`}>
+                                <span className={themeClasses.charCounter}>
                                     {charCount}/{maxChars}
                                 </span>
                             </div>
