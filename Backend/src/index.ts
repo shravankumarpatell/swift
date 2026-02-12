@@ -9,7 +9,7 @@ import { fullstackprompt as fullstackprompt } from "./defaults/fullstack";
 import cors from "cors";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const MAX_OUTPUT_TOKENS = 8192;
 const TEMPERATURE = 0.7;
 const MAX_RETRIES = 3;

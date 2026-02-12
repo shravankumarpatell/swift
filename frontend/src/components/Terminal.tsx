@@ -11,6 +11,7 @@ interface TerminalProps {
   onCommandComplete: (commandId: number) => void;
   showTerminal: boolean;
   setShowTerminal: Dispatch<SetStateAction<boolean>>;
+  files?: any[];
 }
 
 interface TerminalSession {
@@ -36,7 +37,8 @@ export function Terminal({
   onCommandStart, 
   onCommandComplete,
   showTerminal,
-  setShowTerminal 
+  setShowTerminal,
+  files = []
 }: TerminalProps) {
   const [terminals, setTerminals] = useState<TerminalSession[]>([]);
   const [activeTerminalId, setActiveTerminalId] = useState<string>('');
@@ -92,6 +94,37 @@ export function Terminal({
         : t
     ));
   }, []);
+
+  // When files are mounted, re-detect the project directory
+  // (on first init, the WebContainer FS only has system dirs like /bin, /etc)
+  const hasDetectedProjectDirRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (!webContainer || !managerRef.current || !isInitialized || files.length === 0) return;
+    if (hasDetectedProjectDirRef.current) return; // only do this once
+
+    const detectDir = async () => {
+      try {
+        const projectDir = await managerRef.current!.findProjectDir();
+        if (projectDir !== '/' || currentDirRef.current === '/') {
+          hasDetectedProjectDirRef.current = true;
+          console.log('[Terminal] Files mounted, project dir:', projectDir);
+          currentDirRef.current = projectDir;
+          setTerminals(prev => prev.map(t => (
+            { ...t, currentDir: projectDir }
+          )));
+          appendOutput(activeTerminalId, `📁 Project detected at: ${projectDir}`);
+          await listDirectoryAt(activeTerminalId, projectDir);
+        }
+      } catch (e) {
+        console.warn('[Terminal] Could not detect project dir after file mount:', e);
+      }
+    };
+
+    // Small delay to ensure files are fully mounted in WebContainer
+    const timer = setTimeout(detectDir, 500);
+    return () => clearTimeout(timer);
+  }, [files.length, webContainer, isInitialized]);
 
   // Initialize terminal when WebContainer is ready
   useEffect(() => {

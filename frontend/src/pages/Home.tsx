@@ -178,9 +178,6 @@ export function Home() {
 
             <div className="flex items-center gap-3">
               <DarkModeToggle />
-              <button className={themeClasses.signInButton}>
-                <p>Sign In</p>
-              </button>
             </div>
           </div>
         </div>

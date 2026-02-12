@@ -319,10 +319,18 @@ export function Builder() {
         step?.type === StepType.ExecuteCommand ||
         step?.type === StepType.RunCommand
       ) {
-        const command = step.code || step.command || '';
+        const command = (step.code || step.command || '').trim();
         if (command) {
-          setCommandQueue(prev => [...prev, { id: step.id, command }]);
-          setShowTerminal(true);
+          // Filter out npm install/dev/build/start commands — these are handled
+          // by the preview system automatically, not the terminal
+          const isNpmLifecycleCmd = /^npm\s+(install|i|ci|run\s+(dev|start|build)|start)/.test(command);
+          if (isNpmLifecycleCmd) {
+            console.log(`[Builder] Skipping auto-execution of: ${command}`);
+            updateStepStatus(step.id, 'completed');
+          } else {
+            setCommandQueue(prev => [...prev, { id: step.id, command }]);
+            setShowTerminal(true);
+          }
         }
       }
     });
@@ -738,6 +746,7 @@ export function Builder() {
                     onCommandComplete={handleCommandComplete}
                     showTerminal={showTerminal}
                     setShowTerminal={setShowTerminal}
+                    files={files}
                   />
                 </div>
               </div>
