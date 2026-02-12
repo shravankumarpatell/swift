@@ -95,35 +95,50 @@ export function Terminal({
     ));
   }, []);
 
-  // When files are mounted, re-detect the project directory
-  // (on first init, the WebContainer FS only has system dirs like /bin, /etc)
+  // Keep a ref of activeTerminalId so async effects always see the latest
+  const terminalIdRef = useRef<string>('');
+  useEffect(() => {
+    terminalIdRef.current = activeTerminalId;
+  }, [activeTerminalId]);
+
+  // When files are mounted, detect the project directory and show listing.
+  // This replaces the old "detect on init" approach which ran before files existed.
   const hasDetectedProjectDirRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!webContainer || !managerRef.current || !isInitialized || files.length === 0) return;
+    if (!webContainer || !managerRef.current || !isInitialized) return;
+    if (files.length === 0) return;
     if (hasDetectedProjectDirRef.current) return; // only do this once
 
     const detectDir = async () => {
+      // Wait for files to be fully mounted in WebContainer
+      // (the mount is async and happens in a separate useEffect in Builder.tsx)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       try {
         const projectDir = await managerRef.current!.findProjectDir();
-        if (projectDir !== '/' || currentDirRef.current === '/') {
-          hasDetectedProjectDirRef.current = true;
-          console.log('[Terminal] Files mounted, project dir:', projectDir);
-          currentDirRef.current = projectDir;
-          setTerminals(prev => prev.map(t => (
-            { ...t, currentDir: projectDir }
-          )));
-          appendOutput(activeTerminalId, `📁 Project detected at: ${projectDir}`);
-          await listDirectoryAt(activeTerminalId, projectDir);
+        hasDetectedProjectDirRef.current = true;
+        const tid = terminalIdRef.current;
+
+        console.log('[Terminal] Files mounted, project dir:', projectDir);
+        currentDirRef.current = projectDir;
+        setTerminals(prev => prev.map(t => (
+          { ...t, currentDir: projectDir, output: [
+            ...t.output,
+            `📁 Project detected at: ${projectDir}`,
+          ]}
+        )));
+
+        // List the project directory contents
+        if (tid) {
+          await listDirectoryAt(tid, projectDir);
         }
       } catch (e) {
         console.warn('[Terminal] Could not detect project dir after file mount:', e);
       }
     };
 
-    // Small delay to ensure files are fully mounted in WebContainer
-    const timer = setTimeout(detectDir, 500);
-    return () => clearTimeout(timer);
+    detectDir();
   }, [files.length, webContainer, isInitialized]);
 
   // Initialize terminal when WebContainer is ready
@@ -162,38 +177,27 @@ export function Terminal({
   }, [terminals]);
 
   const initializeTerminal = async () => {
-    if (!webContainer || !managerRef.current) return;
+    if (!webContainer) return;
 
     try {
-      // Auto-detect the project directory
-      let projectDir = '/';
-      try {
-        projectDir = await managerRef.current.findProjectDir();
-        console.log('[Terminal] Auto-detected project dir:', projectDir);
-      } catch {
-        console.warn('[Terminal] Could not auto-detect project dir, defaulting to /');
-      }
-
-      currentDirRef.current = projectDir;
-
       const newTerminal: TerminalSession = {
         id: `terminal-${Date.now()}`,
         name: 'Main Terminal',
         output: [
           '🚀 Terminal initialized and connected to WebContainer',
-          `📁 Current directory: ${projectDir}`,
+          '📁 Current directory: /',
           '💡 Type "help" for available commands or start typing any command',
+          '⏳ Waiting for project files to be mounted...',
           ''
         ],
-        currentDir: projectDir,
+        currentDir: '/',
         isActive: true,
       };
 
       setTerminals([newTerminal]);
       setActiveTerminalId(newTerminal.id);
-      
-      // Show current directory contents
-      await listDirectoryAt(newTerminal.id, projectDir);
+      // Don't list files here — they aren't mounted yet.
+      // The useEffect watching files.length will handle it.
     } catch (error) {
       console.error('Error initializing terminal:', error);
       
