@@ -1,15 +1,33 @@
 import { WebContainer } from '@webcontainer/api';
 import { useEffect, useState, useRef } from 'react';
-import { RefreshCw, AlertTriangle, ExternalLink } from 'lucide-react';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { WebContainerManager } from '../hooks/WebContainerManager';
 import { useDarkMode } from '../contexts/DarkModeContext';
 
 interface PreviewFrameProps {
   files: any[];
   webContainer: WebContainer | null;
+  loading?: boolean;
 }
 
-export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
+/**
+ * Extract package.json content from the file tree so we can detect
+ * when dependencies change and need a fresh `npm install`.
+ */
+function getPackageJsonContent(files: any[]): string | null {
+  for (const file of files) {
+    if (file.type === 'file' && file.name === 'package.json') {
+      return file.content || null;
+    }
+    if (file.type === 'folder' && file.children) {
+      const found = getPackageJsonContent(file.children);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+export function PreviewFrame({ files, webContainer, loading = false }: PreviewFrameProps) {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStep, setLoadingStep] = useState("Initializing...");
@@ -17,15 +35,14 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
   const [retryCount, setRetryCount] = useState(0);
   const managerRef = useRef<WebContainerManager | null>(null);
   const initializationRef = useRef<boolean>(false);
+  const lastInstalledPkgJsonRef = useRef<string | null>(null);
   const { isDarkMode } = useDarkMode();
 
   useEffect(() => {
     managerRef.current = WebContainerManager.getInstance();
   }, []);
 
-  // Check if we have a package.json to determine if this is a dev server project
   const hasPackageJson = files.some(file => file.name === 'package.json');
-  const hasIndexHtml = files.some(file => file.name === 'index.html');
 
   const resetState = () => {
     setUrl("");
@@ -34,25 +51,23 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
     setLoadingStep("Initializing...");
   };
 
-  async function initializePreview() {
+  async function runInstallAndStartDev() {
     if (!managerRef.current || !webContainer) {
       setError("WebContainer not available");
       setIsLoading(false);
       return;
     }
 
-    // Prevent multiple initialization attempts
-    if (initializationRef.current) {
-      return;
-    }
+    if (initializationRef.current) return;
     initializationRef.current = true;
 
     try {
       resetState();
-      
-      // Check if dev server is already running
+
+      // Check if dev server is already running AND deps haven't changed
+      const currentPkgJson = getPackageJsonContent(files);
       const existingUrl = managerRef.current.getDevServerUrl();
-      if (existingUrl) {
+      if (existingUrl && lastInstalledPkgJsonRef.current === currentPkgJson) {
         console.log('Using existing dev server:', existingUrl);
         setUrl(existingUrl);
         setIsLoading(false);
@@ -61,7 +76,6 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
       }
 
       if (!hasPackageJson) {
-        // If no package.json, show static content message
         setLoadingStep("No package.json found");
         setError("This project doesn't have a package.json file. Add a development server configuration to enable preview.");
         setIsLoading(false);
@@ -72,10 +86,10 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
       console.log('Starting development server...');
       setLoadingStep("Installing dependencies...");
 
-      // Install dependencies first
+      // Install dependencies
       try {
         const installProcess = await webContainer.spawn('npm', ['install']);
-        
+
         let installOutput = '';
         installProcess.output.pipeTo(new WritableStream({
           write(data) {
@@ -89,12 +103,20 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
           throw new Error(`npm install failed with exit code ${installExitCode}`);
         }
 
+        // Track what we installed so we can detect changes later
+        lastInstalledPkgJsonRef.current = currentPkgJson;
+
         console.log('Dependencies installed successfully');
         setLoadingStep("Starting development server...");
 
-        // Start dev server using the manager
+        // If dev server is already running, kill it so we restart with new deps
+        if (existingUrl) {
+          console.log('Restarting dev server with updated dependencies...');
+          managerRef.current.resetDevServer();
+        }
+
         const devServerUrl = await managerRef.current.startDevServer();
-        
+
         if (devServerUrl) {
           console.log('Dev server started successfully:', devServerUrl);
           setUrl(devServerUrl);
@@ -105,10 +127,8 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
 
       } catch (installError) {
         console.error('Installation error:', installError);
-        
-        // Try to start dev server anyway (maybe dependencies are already installed)
         setLoadingStep("Attempting to start development server...");
-        
+
         try {
           const devServerUrl = await managerRef.current.startDevServer();
           if (devServerUrl) {
@@ -119,7 +139,7 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
             throw installError;
           }
         } catch (serverError) {
-          throw installError; // Throw original install error
+          throw installError;
         }
       }
 
@@ -134,24 +154,31 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
     }
   }
 
-  // Initialize preview when WebContainer and files are ready
+  // Initialize preview when WebContainer and files are ready AND loading is complete
   useEffect(() => {
-    if (webContainer && files.length > 0 && !initializationRef.current) {
-      console.log('Initializing preview with', files.length, 'files');
-      initializePreview();
+    if (webContainer && files.length > 0 && !loading && !initializationRef.current) {
+      console.log('AI response complete. Initializing preview with', files.length, 'files');
+      runInstallAndStartDev();
     }
-  }, [webContainer, files.length]);
+  }, [webContainer, files.length, loading]);
+
+  // Re-install deps if package.json changes after initial install
+  useEffect(() => {
+    if (!webContainer || loading || files.length === 0 || !lastInstalledPkgJsonRef.current) return;
+
+    const currentPkgJson = getPackageJsonContent(files);
+    if (currentPkgJson && currentPkgJson !== lastInstalledPkgJsonRef.current) {
+      console.log('[PreviewFrame] package.json changed — re-installing dependencies');
+      initializationRef.current = false;
+      runInstallAndStartDev();
+    }
+  }, [files, loading]);
 
   const retryInitialization = () => {
     setRetryCount(prev => prev + 1);
     initializationRef.current = false;
-    initializePreview();
-  };
-
-  const openInNewTab = () => {
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
+    lastInstalledPkgJsonRef.current = null; // Force re-install
+    runInstallAndStartDev();
   };
 
   const themeClasses = {
@@ -195,9 +222,6 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
       ? "flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors mx-auto"
       : "flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors mx-auto",
     alternativeText: isDarkMode ? "text-sm text-slate-500 mb-2" : "text-sm text-gray-500 mb-2",
-    linkButton: isDarkMode
-      ? "flex items-center gap-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-sm transition-colors"
-      : "flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm transition-colors",
     previewContainer: isDarkMode
       ? "h-full flex flex-col bg-[#0C0E16]"
       : "h-full flex flex-col bg-gray-50",
@@ -220,6 +244,21 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
       : "animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4",
     fallbackText: isDarkMode ? "text-gray-400" : "text-gray-600"
   };
+
+  // Show "Waiting for AI" while still loading
+  if (loading) {
+    return (
+      <div className={themeClasses.loadingContainer}>
+        <div className="text-center max-w-md px-6">
+          <div className={themeClasses.loadingSpinner}></div>
+          <h3 className={themeClasses.loadingTitle}>Waiting for AI response...</h3>
+          <div className={`${themeClasses.loadingDescription} space-y-2`}>
+            <p>Preview will start once the code generation is complete.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
   if (isLoading && !error) {
@@ -290,39 +329,13 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
               <RefreshCw className="w-4 h-4" />
               Retry {retryCount > 0 && `(${retryCount})`}
             </button>
-
-            {(hasIndexHtml || hasPackageJson) && (
-              <div className={`pt-4 ${isDarkMode ? 'border-t border-slate-700/50' : 'border-t border-gray-200/50'}`}>
-                <p className={themeClasses.alternativeText}>Alternative options:</p>
-                <div className="flex gap-2 justify-center">
-                  <a
-                    href="https://codesandbox.io/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={themeClasses.linkButton}
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    CodeSandbox
-                  </a>
-                  <a
-                    href="https://stackblitz.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={themeClasses.linkButton}
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    StackBlitz
-                  </a>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
     );
   }
 
-  // Success state - show the preview
+  // Success state - show the preview (no "Open in new tab" button — WebContainer URLs don't work outside the iframe)
   if (url) {
     return (
       <div className={themeClasses.previewContainer}>
@@ -339,13 +352,6 @@ export function PreviewFrame({ files, webContainer }: PreviewFrameProps) {
               title="Refresh preview"
             >
               <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={openInNewTab}
-              className={themeClasses.headerButton}
-              title="Open in new tab"
-            >
-              <ExternalLink className="w-4 h-4" />
             </button>
           </div>
         </div>

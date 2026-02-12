@@ -491,4 +491,53 @@ export class WebContainerManager {
   getDevServerUrl(): string | null {
     return this.devServerUrl;
   }
+
+  /**
+   * Reset dev server state so startDevServer() will start a fresh one.
+   * Call this before re-running npm install when dependencies change.
+   */
+  resetDevServer(): void {
+    if (this.devServerProcess) {
+      try {
+        this.devServerProcess.kill?.();
+      } catch (e) {
+        // ignore kill errors
+      }
+    }
+    this.devServerProcess = null;
+    this.devServerUrl = null;
+  }
+
+  /**
+   * Find the project directory (where package.json lives) inside the WebContainer FS.
+   * Uses the WebContainer filesystem API instead of shell commands (jsh lacks find/test).
+   */
+  async findProjectDir(): Promise<string> {
+    const webContainer = await this.getWebContainer();
+
+    // Check root first — files are typically mounted here
+    try {
+      const rootEntries = await webContainer.fs.readdir('/');
+      if (rootEntries.includes('package.json')) {
+        return '/';
+      }
+    } catch {}
+
+    // Check one level deep (e.g. /app, /project, /home)
+    try {
+      const rootEntries = await webContainer.fs.readdir('/');
+      for (const entry of rootEntries) {
+        try {
+          const subEntries = await webContainer.fs.readdir(`/${entry}`);
+          if (subEntries.includes('package.json')) {
+            return `/${entry}`;
+          }
+        } catch {
+          // not a directory, skip
+        }
+      }
+    } catch {}
+
+    return '/';
+  }
 }

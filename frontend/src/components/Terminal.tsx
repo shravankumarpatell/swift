@@ -1,5 +1,5 @@
 // components/Terminal.tsx
-import React, { Dispatch, SetStateAction, useState, useRef, useEffect } from 'react';
+import React, { Dispatch, SetStateAction, useState, useRef, useEffect, useCallback } from 'react';
 import { WebContainer } from '@webcontainer/api';
 import { ChevronDown, Terminal as TerminalIcon, Zap, Play, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { WebContainerManager } from '../hooks/WebContainerManager';
@@ -49,6 +49,10 @@ export function Terminal({
   const inputRef = useRef<HTMLInputElement>(null);
   const managerRef = useRef<WebContainerManager | null>(null);
 
+  // Use a ref for currentDir so async operations always see the latest value
+  // This prevents the stale closure problem where executeCommand captures old state
+  const currentDirRef = useRef<string>('/');
+
   // Initialize WebContainer Manager
   useEffect(() => {
     managerRef.current = WebContainerManager.getInstance();
@@ -69,6 +73,25 @@ export function Terminal({
       })
       .join('\n');
   };
+
+  // Stable helper to add output lines to a terminal
+  const appendOutput = useCallback((terminalId: string, line: string) => {
+    setTerminals(prev => prev.map(t => 
+      t.id === terminalId 
+        ? { ...t, output: [...t.output, line] }
+        : t
+    ));
+  }, []);
+
+  // Stable helper to update the current directory for a terminal
+  const setDir = useCallback((terminalId: string, dir: string) => {
+    currentDirRef.current = dir;
+    setTerminals(prev => prev.map(t => 
+      t.id === terminalId 
+        ? { ...t, currentDir: dir }
+        : t
+    ));
+  }, []);
 
   // Initialize terminal when WebContainer is ready
   useEffect(() => {
@@ -109,16 +132,27 @@ export function Terminal({
     if (!webContainer || !managerRef.current) return;
 
     try {
+      // Auto-detect the project directory
+      let projectDir = '/';
+      try {
+        projectDir = await managerRef.current.findProjectDir();
+        console.log('[Terminal] Auto-detected project dir:', projectDir);
+      } catch {
+        console.warn('[Terminal] Could not auto-detect project dir, defaulting to /');
+      }
+
+      currentDirRef.current = projectDir;
+
       const newTerminal: TerminalSession = {
         id: `terminal-${Date.now()}`,
         name: 'Main Terminal',
         output: [
           '🚀 Terminal initialized and connected to WebContainer',
-          '📁 Current directory: /',
+          `📁 Current directory: ${projectDir}`,
           '💡 Type "help" for available commands or start typing any command',
           ''
         ],
-        currentDir: '/',
+        currentDir: projectDir,
         isActive: true,
       };
 
@@ -126,7 +160,7 @@ export function Terminal({
       setActiveTerminalId(newTerminal.id);
       
       // Show current directory contents
-      await showDirectoryContents(newTerminal.id, '/');
+      await listDirectoryAt(newTerminal.id, projectDir);
     } catch (error) {
       console.error('Error initializing terminal:', error);
       
@@ -169,12 +203,12 @@ export function Terminal({
     onCommandStart(commandId);
 
     try {
-      const activeTerminal = terminals.find(t => t.id === activeTerminalId) || terminals[0];
-      const cwd = activeTerminal?.currentDir || '/';
+      // Always read from the ref so we get the latest directory
+      const cwd = currentDirRef.current;
 
       // Add command to terminal output
       const commandLine = `$ ${command}`;
-      updateTerminalOutput(activeTerminalId, commandLine);
+      appendOutput(activeTerminalId, commandLine);
       
       // Parse command and arguments
       const [cmd, ...args] = command.trim().split(/\s+/);
@@ -189,7 +223,7 @@ export function Terminal({
       process.output.pipeTo(new WritableStream({
         write(data) {
           outputText += data;
-          updateTerminalOutput(activeTerminalId, data);
+          appendOutput(activeTerminalId, data);
         }
       })).catch(console.error);
 
@@ -200,8 +234,8 @@ export function Terminal({
         ? `✅ Command completed successfully` 
         : `❌ Command failed with exit code ${exitCode}`;
       
-      updateTerminalOutput(activeTerminalId, completionMessage);
-      updateTerminalOutput(activeTerminalId, '');
+      appendOutput(activeTerminalId, completionMessage);
+      appendOutput(activeTerminalId, '');
 
       // Update command execution status
       setCommandExecutions(prev => prev.map(exec => 
@@ -219,8 +253,8 @@ export function Terminal({
 
     } catch (error) {
       const errorMessage = `❌ Command error: ${getErrorMessage(error)}`;
-      updateTerminalOutput(activeTerminalId, errorMessage);
-      updateTerminalOutput(activeTerminalId, '');
+      appendOutput(activeTerminalId, errorMessage);
+      appendOutput(activeTerminalId, '');
       console.error('Command execution error:', error);
       
       setCommandExecutions(prev => prev.map(exec => 
@@ -241,16 +275,13 @@ export function Terminal({
   const executeCommand = async (command: string) => {
     if (!webContainer || !command.trim()) return;
 
-    const activeTerminal = terminals.find(t => t.id === activeTerminalId);
-    if (!activeTerminal) return;
-
     // Add command to history
     setCommandHistory(prev => [...prev, command]);
     setHistoryIndex(-1);
 
     // Add command to output
     const commandLine = `$ ${command}`;
-    updateTerminalOutput(activeTerminalId, commandLine);
+    appendOutput(activeTerminalId, commandLine);
 
     try {
       // Parse command and arguments
@@ -270,8 +301,8 @@ export function Terminal({
       }
 
       if (cmd === 'pwd') {
-        updateTerminalOutput(activeTerminalId, activeTerminal.currentDir);
-        updateTerminalOutput(activeTerminalId, '');
+        appendOutput(activeTerminalId, currentDirRef.current);
+        appendOutput(activeTerminalId, '');
         setCurrentInput('');
         return;
       }
@@ -284,17 +315,17 @@ export function Terminal({
       }
 
       if (cmd === 'ls' && args.length === 0) {
-        await listCurrentDirectory(activeTerminalId);
+        await listDirectoryAt(activeTerminalId, currentDirRef.current);
         setCurrentInput('');
         return;
       }
 
-      console.log(`[User] Executing: ${cmd} ${args.join(' ')} in ${activeTerminal.currentDir}`);
+      // Read cwd from ref (always latest)
+      const cwd = currentDirRef.current;
+      console.log(`[User] Executing: ${cmd} ${args.join(' ')} in ${cwd}`);
 
       // Execute command directly with WebContainer
-      const process = await webContainer.spawn(cmd, args, { 
-        cwd: activeTerminal.currentDir 
-      });
+      const process = await webContainer.spawn(cmd, args, { cwd });
       
       // Handle real-time output
       process.output.pipeTo(new WritableStream({
@@ -304,7 +335,7 @@ export function Terminal({
             const lines = cleanOutput.split('\n');
             lines.forEach(line => {
               if (line.trim() || line === '') {
-                updateTerminalOutput(activeTerminalId, line);
+                appendOutput(activeTerminalId, line);
               }
             });
           }
@@ -315,14 +346,14 @@ export function Terminal({
       const exitCode = await process.exit;
       
       if (exitCode !== 0) {
-        updateTerminalOutput(activeTerminalId, `❌ Process exited with code ${exitCode}`);
+        appendOutput(activeTerminalId, `❌ Process exited with code ${exitCode}`);
       }
-      updateTerminalOutput(activeTerminalId, '');
+      appendOutput(activeTerminalId, '');
 
     } catch (error) {
       const errorMessage = `❌ Command error: ${getErrorMessage(error)}`;
-      updateTerminalOutput(activeTerminalId, errorMessage);
-      updateTerminalOutput(activeTerminalId, '');
+      appendOutput(activeTerminalId, errorMessage);
+      appendOutput(activeTerminalId, '');
       console.error('Command execution error:', error);
     }
 
@@ -333,8 +364,7 @@ export function Terminal({
     if (!webContainer) return;
 
     try {
-      const activeTerminal = terminals.find(t => t.id === terminalId);
-      const currentDir = activeTerminal?.currentDir || '/';
+      const currentDir = currentDirRef.current;
       
       let newDir = targetDir;
       
@@ -347,7 +377,7 @@ export function Terminal({
         } else if (targetDir === '.') {
           newDir = currentDir;
         } else {
-          // Relative path - resolve it properly
+          // Relative path
           if (currentDir === '/') {
             newDir = `/${targetDir}`;
           } else {
@@ -364,61 +394,61 @@ export function Terminal({
 
       console.log(`Attempting to change directory from ${currentDir} to ${newDir}`);
 
-      // Check if directory exists by trying to list it
+      // Check if directory exists
       try {
         const process = await webContainer.spawn('ls', ['-la', newDir]);
         const exitCode = await process.exit;
         
         if (exitCode === 0) {
-          updateTerminalDir(terminalId, newDir);
-          updateTerminalOutput(terminalId, `📁 Changed directory to: ${newDir}`);
-          await listCurrentDirectory(terminalId);
+          // Update dir FIRST, then show listing of the NEW directory
+          setDir(terminalId, newDir);
+          appendOutput(terminalId, `📁 Changed directory to: ${newDir}`);
+          // List the NEW directory, not the old one
+          await listDirectoryAt(terminalId, newDir);
         } else {
-          updateTerminalOutput(terminalId, `❌ Directory not found: ${targetDir}`);
-          updateTerminalOutput(terminalId, '');
+          appendOutput(terminalId, `❌ Directory not found: ${targetDir}`);
+          appendOutput(terminalId, '');
         }
       } catch (error) {
-        updateTerminalOutput(terminalId, `❌ Directory not found: ${targetDir}`);
-        updateTerminalOutput(terminalId, '');
+        appendOutput(terminalId, `❌ Directory not found: ${targetDir}`);
+        appendOutput(terminalId, '');
       }
     } catch (error) {
       const errorMessage = `❌ Error changing directory: ${getErrorMessage(error)}`;
-      updateTerminalOutput(terminalId, errorMessage);
-      updateTerminalOutput(terminalId, '');
+      appendOutput(terminalId, errorMessage);
+      appendOutput(terminalId, '');
       console.error('Directory change error:', error);
     }
   };
 
-  const listCurrentDirectory = async (terminalId: string) => {
+  /**
+   * List directory contents at a specific path.
+   * This avoids the stale-state issue by taking the path directly
+   * instead of reading from terminal state.
+   */
+  const listDirectoryAt = async (terminalId: string, dirPath: string) => {
     if (!webContainer) return;
 
     try {
-      const activeTerminal = terminals.find(t => t.id === terminalId);
-      const currentDir = activeTerminal?.currentDir || '/';
+      const process = await webContainer.spawn('ls', ['-la', dirPath]);
       
-      const process = await webContainer.spawn('ls', ['-la', currentDir]);
-      
-      updateTerminalOutput(terminalId, '📂 Directory contents:');
+      appendOutput(terminalId, '📂 Directory contents:');
       
       process.output.pipeTo(new WritableStream({
         write(data) {
-          const lines = data.split('\n').filter(line => line.trim());
-          lines.forEach(line => {
-            updateTerminalOutput(terminalId, `  ${line}`);
+          const lines = data.split('\n').filter((line: string) => line.trim());
+          lines.forEach((line: string) => {
+            appendOutput(terminalId, `  ${line}`);
           });
         }
       })).catch(console.error);
       
       await process.exit;
-      updateTerminalOutput(terminalId, '');
+      appendOutput(terminalId, '');
     } catch (error) {
-      updateTerminalOutput(terminalId, `❌ Could not list directory: ${getErrorMessage(error)}`);
-      updateTerminalOutput(terminalId, '');
+      appendOutput(terminalId, `❌ Could not list directory: ${getErrorMessage(error)}`);
+      appendOutput(terminalId, '');
     }
-  };
-
-  const showDirectoryContents = async (terminalId: string, directory: string) => {
-    await listCurrentDirectory(terminalId);
   };
 
   const showHelp = (terminalId: string) => {
@@ -437,23 +467,7 @@ export function Terminal({
       ''
     ];
     
-    helpText.forEach(line => updateTerminalOutput(terminalId, line));
-  };
-
-  const updateTerminalOutput = (terminalId: string, output: string) => {
-    setTerminals(prev => prev.map(t => 
-      t.id === terminalId 
-        ? { ...t, output: [...t.output, output] }
-        : t
-    ));
-  };
-
-  const updateTerminalDir = (terminalId: string, dir: string) => {
-    setTerminals(prev => prev.map(t => 
-      t.id === terminalId 
-        ? { ...t, currentDir: dir }
-        : t
-    ));
+    helpText.forEach(line => appendOutput(terminalId, line));
   };
 
   const clearTerminal = (terminalId: string) => {

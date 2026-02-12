@@ -681,7 +681,7 @@ export function Builder() {
                 </div>
               ) : (
                 <div className={themeClasses.previewBg}>
-                  <PreviewFrame webContainer={webContainer} files={files} />
+                  <PreviewFrame webContainer={webContainer} files={files} loading={loading} />
                 </div>
               )}
             </div>
