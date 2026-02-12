@@ -12,6 +12,7 @@ interface TerminalProps {
   showTerminal: boolean;
   setShowTerminal: Dispatch<SetStateAction<boolean>>;
   files?: any[];
+  areFilesMounted?: boolean;
 }
 
 interface TerminalSession {
@@ -38,7 +39,8 @@ export function Terminal({
   onCommandComplete,
   showTerminal,
   setShowTerminal,
-  files = []
+  files = [],
+  areFilesMounted = false
 }: TerminalProps) {
   const [terminals, setTerminals] = useState<TerminalSession[]>([]);
   const [activeTerminalId, setActiveTerminalId] = useState<string>('');
@@ -106,21 +108,28 @@ export function Terminal({
   const hasDetectedProjectDirRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!webContainer || !managerRef.current || !isInitialized) return;
-    if (files.length === 0) return;
+    if (!webContainer || !managerRef.current || !isInitialized) {
+      return;
+    }
+    
+    // Only detect if files are explicitly marked as mounted by the parent
+    if (!areFilesMounted) {
+      if (files.length > 0 && !hasDetectedProjectDirRef.current) {
+        // Optional: show a waiting message if files exist but aren't mounted yet
+        // distinct from the initial "Waiting for project files..."
+      }
+      return;
+    }
+
     if (hasDetectedProjectDirRef.current) return; // only do this once
 
     const detectDir = async () => {
-      // Wait for files to be fully mounted in WebContainer
-      // (the mount is async and happens in a separate useEffect in Builder.tsx)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
       try {
         const projectDir = await managerRef.current!.findProjectDir();
         hasDetectedProjectDirRef.current = true;
         const tid = terminalIdRef.current;
 
-        console.log('[Terminal] Files mounted, project dir:', projectDir);
+        console.log('[Terminal] Files mounted signal received, project dir:', projectDir);
         currentDirRef.current = projectDir;
         setTerminals(prev => prev.map(t => (
           { ...t, currentDir: projectDir, output: [
@@ -139,7 +148,7 @@ export function Terminal({
     };
 
     detectDir();
-  }, [files.length, webContainer, isInitialized]);
+  }, [areFilesMounted, webContainer, isInitialized]);
 
   // Initialize terminal when WebContainer is ready
   useEffect(() => {

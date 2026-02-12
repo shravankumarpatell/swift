@@ -52,7 +52,8 @@ export function Builder() {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Terminal state
-  const [showTerminal, setShowTerminal] = useState<boolean>(true);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [areFilesMounted, setAreFilesMounted] = useState(false);
   const [terminalHeight, setTerminalHeight] = useState(300);
   const [commandQueue, setCommandQueue] = useState<{ id: number; command: string }[]>([]);
   const [isTerminalMaximized, setIsTerminalMaximized] = useState(false);
@@ -344,9 +345,19 @@ export function Builder() {
   useEffect(() => {
     if (files.length > 0 && manager && webContainer) {
       console.log('Mounting files to WebContainer...');
-      manager.mountFiles(files).catch(error => {
-        console.error('Failed to mount files to WebContainer:', error);
-      });
+      // Reset mounted state when files change
+      setAreFilesMounted(false);
+      
+      manager.mountFiles(files)
+        .then(() => {
+          console.log('Files mounted successfully');
+          setAreFilesMounted(true);
+        })
+        .catch(error => {
+          console.error('Failed to mount files to WebContainer:', error);
+          // Even on error, we might want to set true to stop loading spinners, 
+          // but for now let's leave it false to indicate failure.
+        });
     }
   }, [files, manager, webContainer]);
 
@@ -747,6 +758,7 @@ export function Builder() {
                     showTerminal={showTerminal}
                     setShowTerminal={setShowTerminal}
                     files={files}
+                    areFilesMounted={areFilesMounted}
                   />
                 </div>
               </div>
